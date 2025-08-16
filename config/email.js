@@ -25,7 +25,7 @@ const createEmailTransporter = () => {
 };
 
 const emailConfig = {
-  from: process.env.EMAIL_FROM || 'SupaPay <noreply@supapay.com>',
+  from: process.env.EMAIL_FROM || 'SupaPay <supaapay@gmail.com>',
   otpExpiry: parseInt(process.env.OTP_EXPIRY_MINUTES) || 10,
   
   // Email templates configuration

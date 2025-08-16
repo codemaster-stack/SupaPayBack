@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
@@ -17,18 +17,18 @@ const connectDB = async () => {
 
 // Handle connection events
 mongoose.connection.on('disconnected', () => {
-  console.log('MongoDB disconnected');
+  console.log('Mongo disconnected');
 });
 
 mongoose.connection.on('reconnected', () => {
-  console.log('MongoDB reconnected');
+  console.log('Mongo reconnected');
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
   try {
     await mongoose.connection.close();
-    console.log('MongoDB connection closed through app termination');
+    console.log('Mongo connection closed through app termination');
     process.exit(0);
   } catch (error) {
     console.error('Error during database disconnection:', error);

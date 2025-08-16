@@ -3,13 +3,13 @@ const cors = require('cors');
 const helmet = require('helmet');
 require('dotenv').config();
 
-const connectDB = require('./config/database');
+const connect = require('./config/database');
 const authRoutes = require('./routes/auth');
 
 const app = express();
 
 // Connect to Database
-connectDB();
+connect();
 
 // Security Middleware
 app.use(helmet({

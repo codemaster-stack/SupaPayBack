@@ -20,10 +20,8 @@ app.use(helmet({
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? [
-        'https://your-frontend-domain.netlify.app', // Replace with your actual frontend URL
-        'https://your-frontend-domain.vercel.app',  // If using Vercel
-        'https://your-frontend-domain.surge.sh',    // If using Surge
-        // Add your actual frontend domain here
+        'https://supa-pay-front.vercel.app', // Replace with your actual frontend URL
+        
       ] 
     : [
         'http://localhost:3000', 
@@ -96,15 +94,20 @@ app.use((error, req, res, next) => {
 });
 
 // Start Server
+// Start Server
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, '0.0.0.0', () => {
+  const baseURL = process.env.NODE_ENV === 'production' 
+    ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME || 'your-app-name.onrender.com'}`
+    : `http://localhost:${PORT}`;
+    
   console.log(`
-  🚀 SupaPay Server is running on Render!
+  🚀 SupaPay Server is running!
   📍 Port: ${PORT}
   🌍 Environment: ${process.env.NODE_ENV || 'development'}
-  🔗 Health Check: https://supapay.onrender.com//health
-  📧 Auth API: https://supapay.onrender.com//api/auth
+  🔗 Health Check: ${baseURL}/health
+  📧 Auth API: ${baseURL}/api/auth
   `);
 });
 
@@ -129,3 +132,4 @@ process.on('uncaughtException', (err) => {
 });
 
 module.exports = app;
+

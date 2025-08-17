@@ -99,7 +99,7 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, '0.0.0.0', () => {
   const baseURL = process.env.NODE_ENV === 'production' 
-    ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME || 'your-app-name.onrender.com'}`
+    ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME || 'https://supapayback.onrender.com'}`
     : `http://localhost:${PORT}`;
     
   console.log(`

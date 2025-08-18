@@ -20,7 +20,7 @@ app.use(helmet({
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? [
-        'https://supapay-jade.vercel.app', // Replace with your actual frontend URL
+        'https://supapay.netlify.app', // Replace with your actual frontend URL
         
       ] 
     : [

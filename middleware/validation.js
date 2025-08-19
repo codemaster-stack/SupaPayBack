@@ -2,7 +2,7 @@ const User = require('../models/User');
 
 // Validate signup data
 const validateSignup = async (req, res, next) => {
-  const { email, password, phone, country, account_type, terms } = req.body;
+  const { email, password, phone, country, accountType, termsAccepted } = req.body;
   const errors = [];
 
   // Required fields
@@ -10,8 +10,8 @@ const validateSignup = async (req, res, next) => {
   if (!password) errors.push('Password is required');
   if (!phone) errors.push('Phone number is required');
   if (!country) errors.push('Country is required');
-  if (!account_type) errors.push('Account type is required');
-  if (!terms) errors.push('You must accept the terms and conditions');
+  if (!accountType) errors.push('Account type is required');
+  if (!termsAccepted) errors.push('You must accept the terms and conditions');
 
   // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,7 +28,7 @@ const validateSignup = async (req, res, next) => {
     if (!/(?=.*[@$!%*?&])/.test(password)) errors.push('Password must contain special character');
   }
 
-  // Phone validation (basic - you might want more specific validation)
+  // Phone validation
   if (phone && phone.length < 10) {
     errors.push('Please enter a valid phone number');
   }
@@ -42,7 +42,7 @@ const validateSignup = async (req, res, next) => {
   }
 
   // Check account type
-  if (account_type && !['Personal', 'Business'].includes(account_type)) {
+  if (accountType && !['Personal', 'Business'].includes(accountType)) {
     errors.push('Invalid account type');
   }
 
@@ -57,7 +57,7 @@ const validateSignup = async (req, res, next) => {
   next();
 };
 
-// Validate OTP
+// ✅ Validate OTP
 const validateOTP = (req, res, next) => {
   const { email, otp } = req.body;
   const errors = [];
@@ -79,6 +79,7 @@ const validateOTP = (req, res, next) => {
   next();
 };
 
+// Export both
 module.exports = {
   validateSignup,
   validateOTP

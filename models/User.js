@@ -34,6 +34,12 @@ const userSchema = new mongoose.Schema({
     trim: true
   },
   
+termsAccepted: {
+  type: Boolean,
+  required: true
+},
+
+
   // Verification Status
   isEmailVerified: {
     type: Boolean,

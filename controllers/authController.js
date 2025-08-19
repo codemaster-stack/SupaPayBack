@@ -3,7 +3,7 @@ const emailService = require('../utils/emailService');
 const { emailConfig } = require('../config/email');
 
 class AuthController {
-  // Signup controller
+  // Signup
   async signup(req, res) {
     try {
       const { 
@@ -11,10 +11,44 @@ class AuthController {
         password, 
         phone, 
         country, 
-        account_type, 
-        referral_code, 
-        otp_method 
+        account_type, accountType,
+        referral_code, referralCode,
+        otp_method, otpMethod,
+        termsAccepted 
       } = req.body;
+
+      if (!email || !password || !phone || !country) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required fields',
+          error: 'MISSING_FIELDS'
+        });
+      }
+
+      if (!termsAccepted) {
+        return res.status(400).json({
+          success: false,
+          message: 'You must accept the terms and conditions to create an account',
+          error: 'TERMS_NOT_ACCEPTED'
+        });
+      }
+
+      const emailLower = email.toLowerCase();
+
+      // Check if email already exists
+      const existingUser = await User.findOne({ email: emailLower });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email address is already registered',
+          error: 'DUPLICATE_EMAIL'
+        });
+      }
+
+      // Normalize
+      const normalizedAccountType = account_type || accountType || 'user';
+      const normalizedReferral = referral_code || referralCode || null;
+      const normalizedOtpMethod = otp_method || otpMethod || 'email';
 
       // Generate OTP
       const otpCode = emailService.generateOTP();
@@ -22,13 +56,15 @@ class AuthController {
 
       // Create new user
       const newUser = new User({
-        email,
+        email: emailLower,
         password,
         phone,
         country,
-        accountType: account_type,
-        referralCode: referral_code || null,
-        otpMethod: otp_method || 'email',
+        accountType: normalizedAccountType,
+        referralCode: normalizedReferral,
+        otpMethod: normalizedOtpMethod,
+        status: 'pending_verification', // until OTP verified
+        termsAccepted: termsAccepted,
         emailOTP: {
           code: otpCode,
           expiresAt: otpExpiry,
@@ -36,15 +72,12 @@ class AuthController {
         }
       });
 
-      // Save user to database
       await newUser.save();
 
       // Send OTP email
-      const emailResult = await emailService.sendOTPEmail(email, otpCode);
-      
+      const emailResult = await emailService.sendOTPEmail(emailLower, otpCode);
       if (!emailResult.success) {
-        // If email fails, delete the user and return error
-        await User.findByIdAndDelete(newUser._id);
+        await User.findByIdAndDelete(newUser._id); // rollback
         return res.status(500).json({
           success: false,
           message: 'Failed to send verification email. Please try again.',
@@ -52,7 +85,6 @@ class AuthController {
         });
       }
 
-      // Success response (don't send sensitive data)
       res.status(201).json({
         success: true,
         message: 'Account created successfully! Please check your email for verification code.',
@@ -67,16 +99,6 @@ class AuthController {
 
     } catch (error) {
       console.error('Signup error:', error);
-      
-      // Handle duplicate key error (email already exists)
-      if (error.code === 11000) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email address is already registered',
-          error: 'DUPLICATE_EMAIL'
-        });
-      }
-
       res.status(500).json({
         success: false,
         message: 'Internal server error. Please try again.',
@@ -85,14 +107,21 @@ class AuthController {
     }
   }
 
-  // Verify OTP controller
+  // Verify OTP
   async verifyOTP(req, res) {
     try {
       const { email, otp } = req.body;
+      if (!email || !otp) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email and OTP are required',
+          error: 'MISSING_FIELDS'
+        });
+      }
 
-      // Find user by email
-      const user = await User.findOne({ email });
-      
+      const emailLower = email.toLowerCase();
+      const user = await User.findOne({ email: emailLower });
+
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -101,7 +130,6 @@ class AuthController {
         });
       }
 
-      // Check if already verified
       if (user.isEmailVerified) {
         return res.status(400).json({
           success: false,
@@ -110,8 +138,7 @@ class AuthController {
         });
       }
 
-      // Check if OTP exists
-      if (!user.emailOTP || !user.emailOTP.code) {
+      if (!user.emailOTP?.code) {
         return res.status(400).json({
           success: false,
           message: 'No verification code found. Please request a new one.',
@@ -119,7 +146,6 @@ class AuthController {
         });
       }
 
-      // Check if OTP expired
       if (new Date() > user.emailOTP.expiresAt) {
         return res.status(400).json({
           success: false,
@@ -128,7 +154,6 @@ class AuthController {
         });
       }
 
-      // Check OTP attempts (prevent brute force)
       if (user.emailOTP.attempts >= 5) {
         return res.status(429).json({
           success: false,
@@ -137,12 +162,9 @@ class AuthController {
         });
       }
 
-      // Verify OTP
       if (user.emailOTP.code !== otp) {
-        // Increment attempts
         user.emailOTP.attempts += 1;
         await user.save();
-
         return res.status(400).json({
           success: false,
           message: 'Invalid verification code',
@@ -151,13 +173,12 @@ class AuthController {
         });
       }
 
-      // OTP is valid - verify email
+      // OTP valid
       user.isEmailVerified = true;
       user.status = 'active';
-      user.emailOTP = undefined; // Remove OTP data
+      user.emailOTP = undefined; // clear OTP after success
       await user.save();
 
-      // Send welcome email
       await emailService.sendWelcomeEmail(user.email, user.email.split('@')[0]);
 
       res.status(200).json({
@@ -181,11 +202,10 @@ class AuthController {
     }
   }
 
-  // Resend OTP controller
+  // Resend OTP
   async resendOTP(req, res) {
     try {
       const { email } = req.body;
-
       if (!email) {
         return res.status(400).json({
           success: false,
@@ -194,8 +214,9 @@ class AuthController {
         });
       }
 
-      const user = await User.findOne({ email });
-      
+      const emailLower = email.toLowerCase();
+      const user = await User.findOne({ email: emailLower });
+
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -216,17 +237,10 @@ class AuthController {
       const otpCode = emailService.generateOTP();
       const otpExpiry = new Date(Date.now() + emailConfig.otpExpiry * 60 * 1000);
 
-      // Update user with new OTP
-      user.emailOTP = {
-        code: otpCode,
-        expiresAt: otpExpiry,
-        attempts: 0
-      };
+      user.emailOTP = { code: otpCode, expiresAt: otpExpiry, attempts: 0 };
       await user.save();
 
-      // Send new OTP
-      const emailResult = await emailService.sendOTPEmail(email, otpCode);
-      
+      const emailResult = await emailService.sendOTPEmail(user.email, otpCode);
       if (!emailResult.success) {
         return res.status(500).json({
           success: false,

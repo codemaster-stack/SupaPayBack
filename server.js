@@ -63,6 +63,7 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.set('trust proxy', true)
 // API Routes
 app.use('/api/auth', authRoutes);
 

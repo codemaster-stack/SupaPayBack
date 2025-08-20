@@ -14,6 +14,12 @@ const app = express();
 // Connect to Database
 connect();
 
+// Configure trust proxy based on environment
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1); // Trust only the first proxy (for Render/Heroku/similar)
+} else {
+  app.set('trust proxy', false); // Don't trust proxies in development
+}
 
 // Rate limiting for auth endpoints
 const authLimiter = rateLimit({
@@ -89,7 +95,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.set('trust proxy', true)
+
 // API Routes
 app.use('/api/auth', authRoutes);
 

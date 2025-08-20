@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema({
   },
 accountType: {
   type: String,
-  enum: ['personal', 'business'],
+  enum: ['Personal', 'Business'],
   required: true
 },
 

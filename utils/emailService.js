@@ -109,8 +109,8 @@ class EmailService {
   // Send password reset email
   async sendPasswordResetEmail(email, resetToken, firstName = 'User') {
     const resetUrl = process.env.NODE_ENV === 'production' 
-  ? `https://supapay.netlify.app/passwordreset.html?token=${resetToken}`      
-  : `http://localhost:3000/passwordreset.html?token=${resetToken}`;          
+  ? `https://supapay.netlify.app/passwordreset.html?token=${resetToken}`      // Frontend on Netlify
+  : `http://localhost:3000/passwordreset.html?token=${resetToken}`;           // Local frontend
     const mailOptions = {
       from: emailConfig.from,
       to: email,
@@ -172,13 +172,28 @@ class EmailService {
     };
 
     try {
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Password reset email sent successfully:', result.messageId);
-      return { success: true, messageId: result.messageId };
-    } catch (error) {
-      console.error('Password reset email error:', error);
-      return { success: false, error: error.message };
-    }
+  console.log('🔄 Sending reset email to:', email);
+  console.log('🔗 Reset URL:', resetUrl);
+  console.log('📧 From:', emailConfig.from);
+  
+  const result = await this.transporter.sendMail(mailOptions);
+  
+  console.log(' Reset email result:', {
+    messageId: result.messageId,
+    accepted: result.accepted,
+    rejected: result.rejected,
+    pending: result.pending
+  });
+  
+  return { success: true, messageId: result.messageId };
+} catch (error) {
+  console.error(' Reset email full error:', {
+    message: error.message,
+    code: error.code,
+    response: error.response
+  });
+  return { success: false, error: error.message };
+}
   }
 }
 

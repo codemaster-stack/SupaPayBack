@@ -422,7 +422,7 @@ res.status(200).json({
     );
 
     // Send the reset email
-    await emailService.sendPasswordResetEmail(email, resetToken, user.firstName);
+await emailService.sendPasswordResetEmail(email, resetToken, user.kycData?.personalInfo?.firstName || 'User');
 
     res.status(200).json({
       success: true,

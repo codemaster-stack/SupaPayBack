@@ -24,11 +24,21 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  accountType: {
-    type: String,
-    enum: ['Personal', 'Business'],
-    required: true
-  },
+accountType: {
+  type: String,
+  enum: ['personal', 'business'],
+  required: true
+},
+
+nationality: {
+  type: String,
+  enum: ['nigeria', 'uk', 'us', 'canada', 'other']
+},
+industry: {
+  type: String,
+  enum: ['technology', 'finance', 'healthcare', 'retail', 'manufacturing', 'other']
+},
+
   referralCode: {
     type: String,
     trim: true
@@ -49,11 +59,15 @@ termsAccepted: {
     type: Boolean,
     default: false
   },
-  isKYCComplete: {
-    type: Boolean,
-    default: false
-  },
   
+
+// Update existing kycStatus to include 'not_started'
+kycStatus: {
+  type: String,
+  enum: ['not_started', 'pending', 'approved', 'declined'],
+  default: 'not_started'
+},
+
   // Account Status
   status: {
     type: String,
@@ -74,6 +88,100 @@ termsAccepted: {
     enum: ['email', 'phone'],
     default: 'email'
   },
+
+
+  // KYC Data Fields
+kycData: {
+  // Personal Information (both business and individual)
+  personalInfo: {
+    firstName: String,
+    lastName: String,
+    dateOfBirth: Date,
+    nationality: String,
+    address: String
+  },
+  
+  // Business Information (business accounts only)
+  businessInfo: {
+    companyName: String,
+    registrationNumber: String,
+    industry: String,
+    countryOfIncorporation: String,
+    businessAddress: String
+  },
+  
+  // Directors/Controllers (business accounts only)
+  directors: [{
+    fullName: String,
+    position: String,
+    email: String,
+    nationality: String,
+    addedAt: { type: Date, default: Date.now }
+  }],
+  
+  // Shareholders (business accounts only)
+  shareholders: [{
+    name: String,
+    ownershipPercentage: Number,
+    shareholderType: String,
+    countryOfResidence: String,
+    addedAt: { type: Date, default: Date.now }
+  }],
+  
+  // Individual KYC specific
+  individualVerification: {
+    verificationMethod: {
+      type: String,
+      enum: ['drivers-license', 'passport', 'national-id', 'bvn']
+    },
+    bvnNumber: String,
+    bvnPhone: String,
+    addressDocumentType: {
+      type: String,
+      enum: ['utility', 'bank', 'rent', 'government']
+    }
+  }
+},
+
+// Document Storage
+kycDocuments: {
+  // Individual documents
+  identityDocumentFront: String,
+  identityDocumentBack: String,
+  addressProof: String,
+  
+  // Business documents
+  certificateOfIncorporation: String,
+  memorandumAndArticles: String,
+  taxRegistration: String,
+  businessLicense: String,
+  
+  // Director/Shareholder documents
+  directorDocuments: [String],
+  shareholderDocuments: [String],
+  
+  // Document metadata
+  uploadedAt: { type: Date, default: Date.now },
+  documentStatus: {
+    type: String,
+    enum: ['pending', 'verified', 'rejected'],
+    default: 'pending'
+  }
+},
+
+// KYC Status Tracking
+kycCompleted: {
+  type: Boolean,
+  default: false
+},
+
+declineReason: String,
+kycSubmittedAt: Date,
+kycApprovedAt: Date,
+kycDeclinedAt: Date,
+
+// Additional tracking
+lastLogin: Date,
   
   // Timestamps
   createdAt: {

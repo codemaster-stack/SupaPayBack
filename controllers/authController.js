@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const emailService = require('../utils/emailService');
 const { emailConfig } = require('../config/email');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 class AuthController {
   // Signup
@@ -267,6 +269,182 @@ class AuthController {
       });
     }
   }
+
+  
+
+  // Login
+  async login(req, res) {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email and password are required',
+          error: 'MISSING_FIELDS'
+        });
+      }
+
+      const emailLower = email.toLowerCase();
+      const user = await User.findOne({ email: emailLower });
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password',
+          error: 'INVALID_CREDENTIALS'
+        });
+      }
+
+      // Check email verified
+      if (!user.isEmailVerified) {
+        return res.status(403).json({
+          success: false,
+          message: 'Please verify your email before logging in',
+          error: 'EMAIL_NOT_VERIFIED'
+        });
+      }
+
+      // Check password
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password',
+          error: 'INVALID_CREDENTIALS'
+        });
+      }
+
+     
+     // Generate JWT token (login successful)
+const token = jwt.sign(
+  { userId: user._id, email: user.email, accountType: user.accountType },
+  process.env.JWT_SECRET,
+  { expiresIn: '24h' }
+);
+
+// Update last login
+user.lastLogin = new Date();
+await user.save();
+
+// Return successful login with user data for frontend logic
+res.status(200).json({
+  success: true,
+  message: 'Login successful',
+  userId: user._id,
+  token: token,
+  user: {
+    id: user._id,
+    email: user.email,
+    accountType: user.accountType
+  }
+});
+
+      
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: 'SERVER_ERROR'
+      });
+    }
+  }
+
+
+  // Get User Status for Login Redirect Logic
+  async getUserStatus(req, res) {
+    try {
+      const { userId } = req.params;
+
+      // Find user
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Verify user is requesting their own status
+      if (req.user.userId !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied'
+        });
+      }
+
+      // Return user status for frontend logic
+      res.status(200).json({
+        success: true,
+        kycCompleted: user.kycCompleted || false,
+        kycStatus: user.kycStatus || 'not_started',
+        accountType: user.accountType || 'personal',
+        emailVerified: user.isEmailVerified,
+        lastLogin: user.lastLogin
+      });
+
+    } catch (error) {
+      console.error('Status check error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  // Password Reset Request
+  async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is required',
+          error: 'MISSING_EMAIL'
+        });
+      }
+
+      const emailLower = email.toLowerCase();
+      const user = await User.findOne({ email: emailLower });
+
+      // Always return success for security (don't reveal if email exists)
+      if (!user) {
+        return res.status(200).json({
+          success: true,
+          message: 'If the email exists, a reset link will be sent'
+        });
+      }
+
+      // Generate reset token
+      const resetToken = jwt.sign(
+        { userId: user._id, type: 'password_reset' },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      // In production, send email with reset link
+      // await emailService.sendPasswordResetEmail(email, resetToken);
+
+      res.status(200).json({
+        success: true,
+        message: 'If the email exists, a reset link will be sent',
+        // Remove resetToken in production - only for testing
+        resetToken: resetToken
+      });
+
+    } catch (error) {
+      console.error('Password reset error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: 'SERVER_ERROR'
+      });
+    }
+  }
+
 }
+
+
 
 module.exports = new AuthController();

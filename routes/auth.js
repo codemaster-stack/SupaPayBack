@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { validateSignup, validateOTP } = require('../middleware/validation');
+const { authenticateToken } = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
 
 // Rate limiting
@@ -29,5 +30,19 @@ const otpLimiter = rateLimit({
 router.post('/signup', signupLimiter, validateSignup, authController.signup);
 router.post('/verify-otp', otpLimiter, validateOTP, authController.verifyOTP);
 router.post('/resend-otp', otpLimiter, authController.resendOTP);
+// Login rate limiter
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 login attempts per IP
+  message: {
+    success: false,
+    message: 'Too many login attempts. Please try again later.',
+    error: 'LOGIN_RATE_LIMIT_EXCEEDED'
+  }
+});
+
+router.post('/login', loginLimiter, authController.login);
+router.get('/user/status/:userId', authenticateToken, authController.getUserStatus);
+router.post('/forgot-password', authController.forgotPassword);
 
 module.exports = router;

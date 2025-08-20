@@ -6,10 +6,30 @@ require('dotenv').config();
 const connect = require('./config/database');
 const authRoutes = require('./routes/auth');
 
+const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
+
 const app = express();
 
 // Connect to Database
 connect();
+
+
+// Rate limiting for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  message: { success: false, message: 'Too many login attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// General rate limiting
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { success: false, message: 'Too many requests, please try again later' }
+});
 
 // Security Middleware
 app.use(helmet({
@@ -42,6 +62,12 @@ app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Add rate limiting and logging
+app.use('/api/auth', authLimiter);
+app.use('/api', generalLimiter);
+app.use(morgan('combined'));
+
+
 // Health Check Route
 app.get('/', (req, res) => {
   res.status(200).json({
@@ -73,13 +99,16 @@ app.use('*', (req, res) => {
     success: false,
     message: `API endpoint '${req.originalUrl}' not found`,
     error: 'NOT_FOUND',
-    availableEndpoints: [
-      'GET /',
-      'GET /health',
-      'POST /api/auth/signup',
-      'POST /api/auth/verify-otp',
-      'POST /api/auth/resend-otp'
-    ]
+  availableEndpoints: [
+  'GET /',
+  'GET /health',
+  'POST /api/auth/signup',
+  'POST /api/auth/verify-otp',
+  'POST /api/auth/resend-otp',
+  'POST /api/auth/login',
+  'GET /api/auth/user/status/:userId',
+  'POST /api/auth/forgot-password'
+]
   });
 });
 

@@ -24,8 +24,8 @@ class EmailService {
             body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
             .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
             .header { text-align: center; margin-bottom: 30px; }
-            .logo { font-size: 24px; font-weight: bold; color: #007bff; }
-            .otp-code { font-size: 32px; font-weight: bold; color: #007bff; text-align: center; 
+            .logo { font-size: 24px; font-weight: bold; color: #ffa600ff; }
+            .otp-code { font-size: 32px; font-weight: bold; color: #ffb300ff; text-align: center; 
                        padding: 20px; background: #f8f9fa; border-radius: 8px; margin: 20px 0; 
                        letter-spacing: 5px; }
             .warning { color: #dc3545; font-size: 14px; margin-top: 20px; }

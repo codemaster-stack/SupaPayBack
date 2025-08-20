@@ -394,54 +394,50 @@ res.status(200).json({
 
   // Password Reset Request
   async forgotPassword(req, res) {
-    try {
-      const { email } = req.body;
+  try {
+    const { email } = req.body;
 
-      if (!email) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email is required',
-          error: 'MISSING_EMAIL'
-        });
-      }
-
-      const emailLower = email.toLowerCase();
-      const user = await User.findOne({ email: emailLower });
-
-      // Always return success for security (don't reveal if email exists)
-      if (!user) {
-        return res.status(200).json({
-          success: true,
-          message: 'If the email exists, a reset link will be sent'
-        });
-      }
-
-      // Generate reset token
-      const resetToken = jwt.sign(
-        { userId: user._id, type: 'password_reset' },
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-
-      // In production, send email with reset link
-      // await emailService.sendPasswordResetEmail(email, resetToken);
-
-      res.status(200).json({
-        success: true,
-        message: 'If the email exists, a reset link will be sent',
-        // Remove resetToken in production - only for testing
-        resetToken: resetToken
-      });
-
-    } catch (error) {
-      console.error('Password reset error:', error);
-      res.status(500).json({
+    if (!email) {
+      return res.status(400).json({
         success: false,
-        message: 'Internal server error',
-        error: 'SERVER_ERROR'
+        message: 'Email is required',
+        error: 'MISSING_EMAIL'
       });
     }
+
+    const emailLower = email.toLowerCase();
+    const user = await User.findOne({ email: emailLower });
+
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: 'If the email exists, a reset link will be sent'
+      });
+    }
+
+    const resetToken = jwt.sign(
+      { userId: user._id, type: 'password_reset' },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    // Send the reset email
+    await emailService.sendPasswordResetEmail(email, resetToken, user.firstName);
+
+    res.status(200).json({
+      success: true,
+      message: 'If the email exists, a reset link will be sent'
+    });
+
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: 'SERVER_ERROR'
+    });
   }
+}
 
 
 

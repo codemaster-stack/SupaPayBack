@@ -109,8 +109,8 @@ class EmailService {
   // Send password reset email
   async sendPasswordResetEmail(email, resetToken, firstName = 'User') {
     const resetUrl = process.env.NODE_ENV === 'production' 
-  ? `https://supapay.netlify.app/passwordreset.html?token=${resetToken}`      // Frontend on Netlify
-  : `http://localhost:3000/passwordreset.html?token=${resetToken}`;           // Local frontend
+  ? `https://supapay.netlify.app/passwordreset.html?token=${resetToken}`      
+  : `http://localhost:3000/passwordreset.html?token=${resetToken}`;          
     const mailOptions = {
       from: emailConfig.from,
       to: email,

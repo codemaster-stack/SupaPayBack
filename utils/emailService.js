@@ -104,6 +104,82 @@ class EmailService {
       console.error('Welcome email error:', error);
     }
   }
+
+
+  // Send password reset email
+  async sendPasswordResetEmail(email, resetToken, firstName = 'User') {
+    const resetUrl = process.env.NODE_ENV === 'production' 
+  ? `https://supapay.netlify.app/passwordreset.html?token=${resetToken}`      // Frontend on Netlify
+  : `http://localhost:3000/passwordreset.html?token=${resetToken}`;           // Local frontend
+    const mailOptions = {
+      from: emailConfig.from,
+      to: email,
+      subject: 'Reset Your SupaPay Password',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
+            .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .logo { font-size: 24px; font-weight: bold; color: #ffa600ff; }
+            .reset-button { display: inline-block; padding: 15px 30px; background-color: #ffa600ff; 
+                           color: white; text-decoration: none; border-radius: 8px; font-weight: bold; 
+                           text-align: center; margin: 20px 0; }
+            .reset-button:hover { background-color: #e6940e; }
+            .token { font-family: monospace; background: #f8f9fa; padding: 15px; border-radius: 8px; 
+                    word-break: break-all; margin: 15px 0; }
+            .warning { color: #dc3545; font-size: 14px; margin-top: 20px; }
+            .footer { margin-top: 30px; text-align: center; color: #6c757d; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="logo">SupaPay</div>
+              <h2>Reset Your Password</h2>
+            </div>
+            
+            <p>Hello ${firstName},</p>
+            <p>You requested to reset your password for your SupaPay account. Click the button below to create a new password:</p>
+            
+            <div style="text-align: center;">
+              <a href="${resetUrl}" class="reset-button">Reset Password</a>
+            </div>
+            
+            <p>If the button doesn't work, copy and paste this link into your browser:</p>
+            <div class="token">${resetUrl}</div>
+            
+            <div class="warning">
+              <strong>Security Notice:</strong>
+              <ul>
+                <li>This link will expire in 1 hour for security reasons</li>
+                <li>If you didn't request this reset, please ignore this email</li>
+                <li>Never share this link with anyone</li>
+                <li>Contact support if you have concerns about account security</li>
+              </ul>
+            </div>
+            
+            <div class="footer">
+              <p>© 2025 SupaPay. All rights reserved.</p>
+              <p>This is an automated message, please do not reply.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    try {
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('Password reset email sent successfully:', result.messageId);
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      console.error('Password reset email error:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 module.exports = new EmailService();

@@ -70,40 +70,56 @@ class EmailService {
       console.log('OTP email sent successfully:', result.messageId);
       return { success: true, messageId: result.messageId };
     } catch (error) {
-      console.error('Email send error:', error);
-      return { success: false, error: error.message };
-    }
+  console.error('❌ OTP email send error:', {
+    message: error.message,
+    code: error.code,
+    response: error.response,
+    to: email
+  });
+  return { success: false, error: error.message };
+}
   }
 
   // Send welcome email after verification
-  async sendWelcomeEmail(email, firstName) {
-    const mailOptions = {
-      from: emailConfig.from,
-      to: email,
-      subject: 'Welcome to SupaPay! 🎉',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #007bff;">Welcome to SupaPay, ${firstName}! 🎉</h2>
-          <p>Your email has been successfully verified. You can now access all SupaPay features.</p>
-          <p><strong>Next Steps:</strong></p>
-          <ul>
-            <li>Complete your profile setup</li>
-            <li>Verify your identity (KYC)</li>
-            <li>Start managing your finances</li>
-          </ul>
-          <p>If you have any questions, feel free to contact our support team.</p>
-          <p>Best regards,<br>The SupaPay Team</p>
-        </div>
-      `
-    };
+ // Send welcome email after verification
+async sendWelcomeEmail(email, firstName) {
+  const mailOptions = {
+    from: emailConfig.from,
+    to: email,
+    subject: 'Welcome to SupaPay! 🎉',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #007bff;">Welcome to SupaPay, ${firstName}! 🎉</h2>
+        <p>Your email has been successfully verified. You can now access all SupaPay features.</p>
+        <p><strong>Next Steps:</strong></p>
+        <ul>
+          <li>Complete your profile setup</li>
+          <li>Verify your identity (KYC)</li>
+          <li>Start managing your finances</li>
+        </ul>
+        <p>If you have any questions, feel free to contact our support team.</p>
+        <p>Best regards,<br>The SupaPay Team</p>
+      </div>
+    `
+  };
 
-    try {
-      await this.transporter.sendMail(mailOptions);
-      console.log('Welcome email sent successfully');
-    } catch (error) {
-      console.error('Welcome email error:', error);
-    }
+  console.log('🔄 Sending Welcome email to:', email);
+  console.log('📧 From:', emailConfig.from);
+
+  try {
+    const result = await this.transporter.sendMail(mailOptions);
+    console.log('✅ Welcome email sent successfully:', result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('❌ Welcome email error:', {
+      message: error.message,
+      code: error.code,
+      response: error.response,
+      to: email
+    });
+    return { success: false, error: error.message };
   }
+}
 
 
   // Send password reset email

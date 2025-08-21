@@ -2,12 +2,12 @@ const nodemailer = require('nodemailer');
 
 const createEmailTransporter = () => {
   const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+    host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === 'true', // false for port 587
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_APP_PASSWORD
+      user: process.env.EMAIL_USER,      // 954fa5001@smtp-brevo.com
+      pass: process.env.EMAIL_APP_PASSWORD // Your Brevo SMTP key value
     },
     tls: {
       rejectUnauthorized: false
@@ -23,15 +23,22 @@ const createEmailTransporter = () => {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Email verification timeout'));
-      }, 10000); // 10 second timeout
+      }, 15000); // 15 second timeout (increased for better reliability)
 
       transporter.verify((error, success) => {
         clearTimeout(timeout);
         if (error) {
-          console.error('📧 Email transporter verification failed:', error);
+          console.error('📧 Email transporter verification failed:', {
+            error: error.message,
+            code: error.code,
+            host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+            port: process.env.SMTP_PORT || 587,
+            user: process.env.EMAIL_USER ? ' Set' : ' Missing'
+          });
           reject(error);
         } else {
-          console.log('📧 Email service is ready to send messages');
+          console.log(' Email service is ready to send messages');
+          console.log(' Using Brevo SMTP:', process.env.SMTP_HOST || 'smtp-relay.brevo.com');
           resolve(success);
         }
       });
@@ -47,7 +54,7 @@ const createEmailTransporter = () => {
 };
 
 const emailConfig = {
-  from: process.env.EMAIL_FROM || 'SupaPay <supaapay@gmail.com>',
+  from: process.env.EMAIL_FROM || 'SupaPay <supapay@hotmail.com>',
   otpExpiry: parseInt(process.env.OTP_EXPIRY_MINUTES) || 10,
   
   // Email templates configuration
@@ -62,7 +69,6 @@ const emailConfig = {
     maxOtpPerDay: 20
   }
 };
-
 
 module.exports = {
   createEmailTransporter,

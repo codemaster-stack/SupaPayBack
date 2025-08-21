@@ -3,6 +3,7 @@ const emailService = require('../utils/emailService');
 const { emailConfig } = require('../config/email');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
 class AuthController {
   // Signup
@@ -76,17 +77,19 @@ class AuthController {
 
       await newUser.save();
 
+     
       // Send OTP email
-      const emailResult = await emailService.sendOTPEmail(emailLower, otpCode);
-      if (!emailResult.success) {
-        await User.findByIdAndDelete(newUser._id); // rollback
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to send verification email. Please try again.',
-          error: 'EMAIL_SEND_FAILED'
-        });
-      }
-
+const emailResult = await emailService.sendOTPEmail(emailLower, otpCode);
+if (!emailResult.success) {
+  console.error('❌ Email send failed during signup:', emailResult.error);
+  await User.findByIdAndDelete(newUser._id); // rollback
+  return res.status(500).json({
+    success: false,
+    message: 'Failed to send verification email. Please try again.',
+    error: 'EMAIL_SEND_FAILED',
+    details: emailResult.error
+  });
+}
       res.status(201).json({
         success: true,
         message: 'Account created successfully! Please check your email for verification code.',
@@ -243,13 +246,15 @@ class AuthController {
       await user.save();
 
       const emailResult = await emailService.sendOTPEmail(user.email, otpCode);
-      if (!emailResult.success) {
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to send verification email. Please try again.',
-          error: 'EMAIL_SEND_FAILED'
-        });
-      }
+if (!emailResult.success) {
+  console.error('❌ Resend OTP email failed:', emailResult.error);
+  return res.status(500).json({
+    success: false,
+    message: 'Failed to send verification email. Please try again.',
+    error: 'EMAIL_SEND_FAILED',
+    details: emailResult.error
+  });
+}
 
       res.status(200).json({
         success: true,
@@ -422,12 +427,19 @@ res.status(200).json({
     );
 
     // Send the reset email
-    await emailService.sendPasswordResetEmail(email, resetToken, user.firstName);
+   // Send the reset email
+const firstName = user.firstName || user.email.split('@')[0] || 'User';
+const emailResult = await emailService.sendPasswordResetEmail(email, resetToken, firstName);
 
-    res.status(200).json({
-      success: true,
-      message: 'If the email exists, a reset link will be sent'
-    });
+if (!emailResult.success) {
+  console.error('❌ Password reset email failed:', emailResult.error);
+  // Still return success for security (don't reveal if email exists)
+}
+
+res.status(200).json({
+  success: true,
+  message: 'If the email exists, a reset link will be sent'
+});
 
   } catch (error) {
     console.error('Password reset error:', error);

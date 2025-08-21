@@ -1,26 +1,46 @@
 const nodemailer = require('nodemailer');
 
 const createEmailTransporter = () => {
-  // Gmail configuration
   const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_APP_PASSWORD
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
-  // Verify transporter configuration
-  transporter.verify((error, success) => {
-    if (error) {
-      console.error('Email transporter verification failed:', error);
-    } else {
-      console.log('📧 Email service is ready to send messages');
-    }
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_APP_PASSWORD
+    },
+    tls: {
+      rejectUnauthorized: false
+    },
+    // Add these timeout settings
+    connectionTimeout: 60000,   // 60 seconds
+    greetingTimeout: 30000,     // 30 seconds
+    socketTimeout: 60000        // 60 seconds
+  });
+
+  // Test connection with timeout
+  const verifyTransporter = () => {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Email verification timeout'));
+      }, 10000); // 10 second timeout
+
+      transporter.verify((error, success) => {
+        clearTimeout(timeout);
+        if (error) {
+          console.error('📧 Email transporter verification failed:', error);
+          reject(error);
+        } else {
+          console.log('📧 Email service is ready to send messages');
+          resolve(success);
+        }
+      });
+    });
+  };
+
+  // Run verification
+  verifyTransporter().catch(err => {
+    console.error('Email service initialization failed:', err.message);
   });
 
   return transporter;
@@ -42,6 +62,7 @@ const emailConfig = {
     maxOtpPerDay: 20
   }
 };
+
 
 module.exports = {
   createEmailTransporter,

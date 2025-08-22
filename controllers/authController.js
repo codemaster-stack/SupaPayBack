@@ -457,20 +457,27 @@ class AuthController {
         { expiresIn: '1h' }
       );
 
+      // ✅ Build the full reset link for frontend (Vercel domain in production, localhost in dev)
+const resetLink = process.env.NODE_ENV === 'production'
+  ? `https://your-frontend-domain.vercel.app/reset-password?token=${resetToken}`
+  : `http://localhost:3000/reset-password?token=${resetToken}`;
+
+
       // Send the reset email using Gmail OAuth
       try {
-        console.log('📧 Sending password reset email via Gmail OAuth...');
+        console.log(' Sending password reset email via Gmail OAuth...');
         const firstName = user.firstName || user.email.split('@')[0] || 'User';
-        const emailResult = await emailService.sendPasswordResetEmail(email, resetToken, firstName);
+       const emailResult = await emailService.sendPasswordResetEmail(email, resetLink, firstName);
+
 
         if (!emailResult.success) {
-          console.error('❌ Password reset email failed:', emailResult.error);
+          console.error(' Password reset email failed:', emailResult.error);
           // Still return success for security (don't reveal if email exists)
         } else {
-          console.log('✅ Password reset email sent successfully');
+          console.log(' Password reset email sent successfully');
         }
       } catch (emailError) {
-        console.error('❌ Password reset email service error:', emailError);
+        console.error(' Password reset email service error:', emailError);
         // Still return success for security
       }
 

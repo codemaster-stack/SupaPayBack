@@ -61,11 +61,15 @@ class EmailService {
     `;
 
     try {
-      console.log('📧 Sending OTP email via Gmail OAuth to:', email);
+      if (process.env.NODE_ENV !== 'production') {
+  console.log('📧 Sending OTP email via Gmail OAuth to:', email);
+}
+
       
       const result = await this.gmailService.sendEmail({
         to: email,
-        subject: 'Verify Your SupaPay Account',
+        subject: emailConfig.templates.otpSubject,
+
         html: htmlContent
       });
 
@@ -138,15 +142,16 @@ class EmailService {
       
       const result = await this.gmailService.sendEmail({
         to: email,
-        subject: 'Welcome to SupaPay! 🎉',
+        subject: emailConfig.templates.welcomeSubject,
+
         html: htmlContent
       });
 
-      console.log('✅ Welcome email sent successfully:', result.messageId);
+      console.log(' Welcome email sent successfully:', result.messageId);
       return { success: true, messageId: result.messageId };
       
     } catch (error) {
-      console.error('❌ Welcome email error:', {
+      console.error(' Welcome email error:', {
         message: error.message,
         to: email
       });

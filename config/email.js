@@ -2,11 +2,18 @@ const { google } = require('googleapis');
 
 const createGmailTransporter = () => {
   // Create OAuth2 client
-  const oAuth2Client = new google.auth.OAuth2(
-    process.env.GMAIL_CLIENT_ID,
-    process.env.GMAIL_CLIENT_SECRET,
-    'http://localhost:3000/oauth2callback' // Not used for sending, but required
-  );
+   const redirectUri =
+  process.env.NODE_ENV === "production"
+    ? process.env.GMAIL_REDIRECT_URI_PROD
+    : process.env.GMAIL_REDIRECT_URI_LOCAL;
+
+const oAuth2Client = new google.auth.OAuth2(
+  process.env.GMAIL_CLIENT_ID,
+  process.env.GMAIL_CLIENT_SECRET,
+  redirectUri
+);
+
+
 
   // Set the refresh token
   oAuth2Client.setCredentials({
@@ -36,18 +43,22 @@ const createGmailTransporter = () => {
   };
 
   // Function to send email using Gmail API
-  const sendEmail = async ({ to, subject, text, html }) => {
-    try {
+const sendEmail = async ({ to, subject, text, html }) => {
+  try {
+      // 🔑 Always refresh access token before sending
+      const { token } = await oAuth2Client.getAccessToken();
+
       // Create email content
       const email = [
         `To: ${to}`,
         `From: ${process.env.EMAIL_FROM}`,
-        `Subject: ${subject}`,
+        `Subject: ${subject || '(no subject)'}`,   // added fallback
         'MIME-Version: 1.0',
         'Content-Type: text/html; charset=utf-8',
         '',
         html || text
       ].join('\n');
+
 
       // Encode email in base64url format
       const encodedEmail = Buffer.from(email)
@@ -79,8 +90,11 @@ const createGmailTransporter = () => {
     }
   };
 
-  // Run verification on creation
+  // Run verification only in development
+if (process.env.NODE_ENV !== 'production') {
   verifyConnection();
+}
+
 
   return {
     sendEmail,

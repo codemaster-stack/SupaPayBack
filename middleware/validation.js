@@ -57,7 +57,7 @@ const validateSignup = async (req, res, next) => {
   next();
 };
 
-// ✅ Validate OTP
+//  Validate OTP
 const validateOTP = (req, res, next) => {
   const { email, otp } = req.body;
   const errors = [];

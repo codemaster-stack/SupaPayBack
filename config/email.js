@@ -1,60 +1,96 @@
-const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 
-const createEmailTransporter = () => {
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === 'true', // false for port 587
-    auth: {
-      user: process.env.EMAIL_USER,      // 954fa5001@smtp-brevo.com
-      pass: process.env.EMAIL_APP_PASSWORD // Your Brevo SMTP key value
-    },
-    tls: {
-      rejectUnauthorized: false
-    },
-    // Add these timeout settings
-    connectionTimeout: 60000,   // 60 seconds
-    greetingTimeout: 30000,     // 30 seconds
-    socketTimeout: 60000        // 60 seconds
+const createGmailTransporter = () => {
+  // Create OAuth2 client
+  const oAuth2Client = new google.auth.OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET,
+    'http://localhost:3000/oauth2callback' // Not used for sending, but required
+  );
+
+  // Set the refresh token
+  oAuth2Client.setCredentials({
+    refresh_token: process.env.GMAIL_REFRESH_TOKEN
   });
 
-  // Test connection with timeout
-  const verifyTransporter = () => {
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Email verification timeout'));
-      }, 15000); // 15 second timeout (increased for better reliability)
+  // Create Gmail API instance
+  const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
 
-      transporter.verify((error, success) => {
-        clearTimeout(timeout);
-        if (error) {
-          console.error('📧 Email transporter verification failed:', {
-            error: error.message,
-            code: error.code,
-            host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-            port: process.env.SMTP_PORT || 587,
-            user: process.env.EMAIL_USER ? ' Set' : ' Missing'
-          });
-          reject(error);
-        } else {
-          console.log(' Email service is ready to send messages');
-          console.log(' Using Brevo SMTP:', process.env.SMTP_HOST || 'smtp-relay.brevo.com');
-          resolve(success);
-        }
-      });
-    });
+  // Test the connection
+  const verifyConnection = async () => {
+    try {
+      console.log('🔐 Testing Gmail OAuth connection...');
+      
+      // Test by getting user profile
+      const profile = await gmail.users.getProfile({ userId: 'me' });
+      
+      console.log('✅ Gmail OAuth connection successful!');
+      console.log(`📧 Connected to: ${profile.data.emailAddress}`);
+      console.log(`📊 Total messages: ${profile.data.messagesTotal}`);
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Gmail OAuth connection failed:', error.message);
+      return false;
+    }
   };
 
-  // Run verification
-  verifyTransporter().catch(err => {
-    console.error('Email service initialization failed:', err.message);
-  });
+  // Function to send email using Gmail API
+  const sendEmail = async ({ to, subject, text, html }) => {
+    try {
+      // Create email content
+      const email = [
+        `To: ${to}`,
+        `From: ${process.env.EMAIL_FROM}`,
+        `Subject: ${subject}`,
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=utf-8',
+        '',
+        html || text
+      ].join('\n');
 
-  return transporter;
+      // Encode email in base64url format
+      const encodedEmail = Buffer.from(email)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      // Send the email
+      const result = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedEmail
+        }
+      });
+
+      console.log('📨 Email sent successfully!');
+      console.log(`📬 Message ID: ${result.data.id}`);
+      
+      return {
+        success: true,
+        messageId: result.data.id,
+        threadId: result.data.threadId
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to send email:', error.message);
+      throw error;
+    }
+  };
+
+  // Run verification on creation
+  verifyConnection();
+
+  return {
+    sendEmail,
+    verifyConnection,
+    gmail // Expose gmail instance if needed
+  };
 };
 
 const emailConfig = {
-  from: process.env.EMAIL_FROM || 'SupaPay <supapay@hotmail.com>',
+  from: process.env.EMAIL_FROM || 'SupaPay <supaapay@gmail.com>',
   otpExpiry: parseInt(process.env.OTP_EXPIRY_MINUTES) || 10,
   
   // Email templates configuration
@@ -71,6 +107,6 @@ const emailConfig = {
 };
 
 module.exports = {
-  createEmailTransporter,
+  createGmailTransporter,
   emailConfig
 };

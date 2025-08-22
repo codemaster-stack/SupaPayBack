@@ -1,9 +1,9 @@
 const User = require('../models/User');
 const emailService = require('../utils/emailService');
-const { emailConfig } = require('../config/email');
+const { emailConfig } = require('../config/email'); // Update this path if needed
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+// Removed nodemailer import - not needed with Gmail OAuth
 
 class AuthController {
   // Signup
@@ -77,19 +77,33 @@ class AuthController {
 
       await newUser.save();
 
-     
-      // Send OTP email
-const emailResult = await emailService.sendOTPEmail(emailLower, otpCode);
-if (!emailResult.success) {
-  console.error('❌ Email send failed during signup:', emailResult.error);
-  await User.findByIdAndDelete(newUser._id); // rollback
-  return res.status(500).json({
-    success: false,
-    message: 'Failed to send verification email. Please try again.',
-    error: 'EMAIL_SEND_FAILED',
-    details: emailResult.error
-  });
-}
+      // Send OTP email using Gmail OAuth
+      try {
+        console.log('📧 Sending OTP email via Gmail OAuth...');
+        const emailResult = await emailService.sendOTPEmail(emailLower, otpCode);
+        
+        if (!emailResult.success) {
+          console.error('❌ Email send failed during signup:', emailResult.error);
+          await User.findByIdAndDelete(newUser._id); // rollback
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to send verification email. Please try again.',
+            error: 'EMAIL_SEND_FAILED',
+            details: emailResult.error
+          });
+        }
+        
+        console.log('✅ OTP email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Email service error:', emailError);
+        await User.findByIdAndDelete(newUser._id); // rollback
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send verification email. Please try again.',
+          error: 'EMAIL_SEND_FAILED'
+        });
+      }
+
       res.status(201).json({
         success: true,
         message: 'Account created successfully! Please check your email for verification code.',
@@ -184,7 +198,15 @@ if (!emailResult.success) {
       user.emailOTP = undefined; // clear OTP after success
       await user.save();
 
-      await emailService.sendWelcomeEmail(user.email, user.email.split('@')[0]);
+      // Send welcome email using Gmail OAuth
+      try {
+        console.log('📧 Sending welcome email via Gmail OAuth...');
+        await emailService.sendWelcomeEmail(user.email, user.email.split('@')[0]);
+        console.log('✅ Welcome email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Welcome email failed (but verification succeeded):', emailError);
+        // Don't fail the verification if welcome email fails
+      }
 
       res.status(200).json({
         success: true,
@@ -245,16 +267,30 @@ if (!emailResult.success) {
       user.emailOTP = { code: otpCode, expiresAt: otpExpiry, attempts: 0 };
       await user.save();
 
-      const emailResult = await emailService.sendOTPEmail(user.email, otpCode);
-if (!emailResult.success) {
-  console.error('❌ Resend OTP email failed:', emailResult.error);
-  return res.status(500).json({
-    success: false,
-    message: 'Failed to send verification email. Please try again.',
-    error: 'EMAIL_SEND_FAILED',
-    details: emailResult.error
-  });
-}
+      // Send OTP email using Gmail OAuth
+      try {
+        console.log('📧 Resending OTP email via Gmail OAuth...');
+        const emailResult = await emailService.sendOTPEmail(user.email, otpCode);
+        
+        if (!emailResult.success) {
+          console.error('❌ Resend OTP email failed:', emailResult.error);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to send verification email. Please try again.',
+            error: 'EMAIL_SEND_FAILED',
+            details: emailResult.error
+          });
+        }
+        
+        console.log('✅ OTP email resent successfully');
+      } catch (emailError) {
+        console.error('❌ Resend email service error:', emailError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send verification email. Please try again.',
+          error: 'EMAIL_SEND_FAILED'
+        });
+      }
 
       res.status(200).json({
         success: true,
@@ -274,8 +310,6 @@ if (!emailResult.success) {
       });
     }
   }
-
-  
 
   // Login
   async login(req, res) {
@@ -319,31 +353,29 @@ if (!emailResult.success) {
         });
       }
 
-     
-     // Generate JWT token (login successful)
-const token = jwt.sign(
-  { userId: user._id, email: user.email, accountType: user.accountType },
-  process.env.JWT_SECRET,
-  { expiresIn: '24h' }
-);
+      // Generate JWT token (login successful)
+      const token = jwt.sign(
+        { userId: user._id, email: user.email, accountType: user.accountType },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
 
-// Update last login
-user.lastLogin = new Date();
-await user.save();
+      // Update last login
+      user.lastLogin = new Date();
+      await user.save();
 
-// Return successful login with user data for frontend logic
-res.status(200).json({
-  success: true,
-  message: 'Login successful',
-  userId: user._id,
-  token: token,
-  user: {
-    id: user._id,
-    email: user.email,
-    accountType: user.accountType
-  }
-});
-
+      // Return successful login with user data for frontend logic
+      res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        userId: user._id,
+        token: token,
+        user: {
+          id: user._id,
+          email: user.email,
+          accountType: user.accountType
+        }
+      });
       
     } catch (error) {
       console.error('Login error:', error);
@@ -354,7 +386,6 @@ res.status(200).json({
       });
     }
   }
-
 
   // Get User Status for Login Redirect Logic
   async getUserStatus(req, res) {
@@ -399,126 +430,129 @@ res.status(200).json({
 
   // Password Reset Request
   async forgotPassword(req, res) {
-  try {
-    const { email } = req.body;
+    try {
+      const { email } = req.body;
 
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required',
-        error: 'MISSING_EMAIL'
-      });
-    }
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is required',
+          error: 'MISSING_EMAIL'
+        });
+      }
 
-    const emailLower = email.toLowerCase();
-    const user = await User.findOne({ email: emailLower });
+      const emailLower = email.toLowerCase();
+      const user = await User.findOne({ email: emailLower });
 
-    if (!user) {
-      return res.status(200).json({
+      if (!user) {
+        return res.status(200).json({
+          success: true,
+          message: 'If the email exists, a reset link will be sent'
+        });
+      }
+
+      const resetToken = jwt.sign(
+        { userId: user._id, type: 'password_reset' },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      // Send the reset email using Gmail OAuth
+      try {
+        console.log('📧 Sending password reset email via Gmail OAuth...');
+        const firstName = user.firstName || user.email.split('@')[0] || 'User';
+        const emailResult = await emailService.sendPasswordResetEmail(email, resetToken, firstName);
+
+        if (!emailResult.success) {
+          console.error('❌ Password reset email failed:', emailResult.error);
+          // Still return success for security (don't reveal if email exists)
+        } else {
+          console.log('✅ Password reset email sent successfully');
+        }
+      } catch (emailError) {
+        console.error('❌ Password reset email service error:', emailError);
+        // Still return success for security
+      }
+
+      res.status(200).json({
         success: true,
         message: 'If the email exists, a reset link will be sent'
       });
+
+    } catch (error) {
+      console.error('Password reset error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: 'SERVER_ERROR'
+      });
     }
-
-    const resetToken = jwt.sign(
-      { userId: user._id, type: 'password_reset' },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    // Send the reset email
-   // Send the reset email
-const firstName = user.firstName || user.email.split('@')[0] || 'User';
-const emailResult = await emailService.sendPasswordResetEmail(email, resetToken, firstName);
-
-if (!emailResult.success) {
-  console.error('❌ Password reset email failed:', emailResult.error);
-  // Still return success for security (don't reveal if email exists)
-}
-
-res.status(200).json({
-  success: true,
-  message: 'If the email exists, a reset link will be sent'
-});
-
-  } catch (error) {
-    console.error('Password reset error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: 'SERVER_ERROR'
-    });
   }
-}
-
-
 
   async resetPassword(req, res) {
-  try {
-    const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token and new password are required',
-        error: 'MISSING_FIELDS'
-      });
-    }
-
-    // Verify the reset token
-    let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(400).json({
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Token and new password are required',
+          error: 'MISSING_FIELDS'
+        });
+      }
+
+      // Verify the reset token
+      let decoded;
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or expired reset token',
+          error: 'INVALID_TOKEN'
+        });
+      }
+
+      // Check if it's a password reset token
+      if (decoded.type !== 'password_reset') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid token type',
+          error: 'INVALID_TOKEN_TYPE'
+        });
+      }
+
+      // Find user
+      const user = await User.findById(decoded.userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+          error: 'USER_NOT_FOUND'
+        });
+      }
+
+      // Hash new password
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update user's password
+      await User.findByIdAndUpdate(user._id, { password: hashedPassword });
+
+      res.status(200).json({
+        success: true,
+        message: 'Password reset successful'
+      });
+
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({
         success: false,
-        message: 'Invalid or expired reset token',
-        error: 'INVALID_TOKEN'
+        message: 'Internal server error',
+        error: 'SERVER_ERROR'
       });
     }
-
-    // Check if it's a password reset token
-    if (decoded.type !== 'password_reset') {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid token type',
-        error: 'INVALID_TOKEN_TYPE'
-      });
-    }
-
-    // Find user
-    const user = await User.findById(decoded.userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-        error: 'USER_NOT_FOUND'
-      });
-    }
-
-    // Hash new password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    // Update user's password
-    await User.findByIdAndUpdate(user._id, { password: hashedPassword });
-
-    res.status(200).json({
-      success: true,
-      message: 'Password reset successful'
-    });
-
-  } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: 'SERVER_ERROR'
-    });
   }
 }
-}
-
-
 
 module.exports = new AuthController();

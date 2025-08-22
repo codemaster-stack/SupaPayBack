@@ -458,8 +458,8 @@ class AuthController {
       );
 
       // ✅ Build the full reset link for frontend (Vercel domain in production, localhost in dev)
-const resetLink = process.env.NODE_ENV === 'production'
-  ? `https://your-frontend-domain.vercel.app/reset-password?token=${resetToken}`
+     const resetLink = process.env.NODE_ENV === 'production'
+  ? `https://supapay.netlify.app/passwordreset.html?token=${resetToken}`
   : `http://localhost:3000/reset-password?token=${resetToken}`;
 
 

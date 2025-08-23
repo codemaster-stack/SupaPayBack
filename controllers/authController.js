@@ -457,10 +457,10 @@ class AuthController {
         { expiresIn: '1h' }
       );
 
-      // ✅ Build the full reset link for frontend (Vercel domain in production, localhost in dev)
+      //  Build the full reset link for frontend (Vercel domain in production, localhost in dev)
      const resetLink = process.env.NODE_ENV === 'production'
-  ? `https://supapay.netlify.app/passwordreset.html?token=${resetToken}`
-  : `http://localhost:3000/reset-password?token=${resetToken}`;
+  ? `${process.env.FRONTEND_URL_PROD}/passwordreset.html?token=${resetToken}`
+  : `${process.env.FRONTEND_URL_LOCAL}/reset-password?token=${resetToken}`;
 
 
       // Send the reset email using Gmail OAuth

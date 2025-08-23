@@ -119,7 +119,7 @@
 //   console.log("🚀 Gmail OAuth Token Generator Started");
 //   console.log("=".repeat(60));
 //   console.log(`📍 Server running on: ${baseUrl}`);
-//   console.log(`👉 Open your browser and visit: ${baseUrl}/auth`); // ✅ fixed
+//   console.log(`👉 Open your browser and visit: ${baseUrl}/auth`); 
 //   console.log("=".repeat(60));
 // });
 

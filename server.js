@@ -11,6 +11,19 @@ const morgan = require('morgan');
 
 const app = express();
 
+// Add this near the top, after `app = express();` and before route definitions
+app.use((req, res, next) => {
+  console.log('==============================');
+  console.log('Incoming request:');
+  console.log('Method:', req.method);
+  console.log('URL:', req.originalUrl);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  console.log('==============================');
+  next();
+});
+
+
 // Connect to Database
 connect();
 

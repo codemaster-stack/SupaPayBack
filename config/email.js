@@ -91,9 +91,9 @@ const sendEmail = async ({ to, subject, text, html }) => {
   };
 
   // Run verification only in development
-if (process.env.NODE_ENV !== 'production') {
+
   verifyConnection();
-}
+
 
 
   return {

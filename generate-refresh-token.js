@@ -106,12 +106,20 @@
 //   }
 // });
 
-// const PORT = 3000;
+// const PORT = process.env.PORT || 3000;
+
+// // 🌍 Use the correct base URL depending on environment
+// const baseUrl =
+//   process.env.NODE_ENV === "production"
+//     ? "https://supapayback.onrender.com" // 👈 Render backend domain
+//     : `http://localhost:${PORT}`;
+
 // app.listen(PORT, () => {
-//   console.log('='.repeat(60));
-//   console.log('🚀 Gmail OAuth Token Generator Started');
-//   console.log('='.repeat(60));
-//   console.log(`📍 Server running on: http://localhost:${PORT}`);
-//   console.log('👉 Open your browser and visit: http://localhost:3000');
-//   console.log('='.repeat(60));
+//   console.log("=".repeat(60));
+//   console.log("🚀 Gmail OAuth Token Generator Started");
+//   console.log("=".repeat(60));
+//   console.log(`📍 Server running on: ${baseUrl}`);
+//   console.log(`👉 Open your browser and visit: ${baseUrl}/auth`); // ✅ fixed
+//   console.log("=".repeat(60));
 // });
+

@@ -42,8 +42,14 @@ const loginLimiter = rateLimit({
 });
 
 router.post('/login', loginLimiter, authController.login);
+
 router.get('/user/status/:userId', authenticateToken, authController.getUserStatus);
-router.post('/forgot-password', authController.forgotPassword);
+router.post('/forgot-password', (req, res, next) => {
+  console.log('🔥 HIT /api/auth/forgot-password route!');
+  console.log('Request body:', req.body);
+  next(); // move on to the controller
+}, authController.forgotPassword);
+
 router.post('/reset-password', authController.resetPassword);
 
 module.exports = router;

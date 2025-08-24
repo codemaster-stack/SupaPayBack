@@ -10,7 +10,9 @@ const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 
 const app = express();
-
+// Body Parser Middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Add this near the top, after `app = express();` and before route definitions
 app.use((req, res, next) => {
   console.log('==============================');
@@ -76,10 +78,6 @@ app.use(cors({
 
 // Handle preflight requests
 app.options('*', cors());
-
-// Body Parser Middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Add rate limiting and logging
 app.use('/api/auth', authLimiter);

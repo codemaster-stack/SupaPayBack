@@ -318,9 +318,13 @@ async sendPasswordResetEmail(email, resetLink, firstName = 'User') {
     
   } catch (error) {
     console.error('❌ Password reset email error:', {
-      message: error.message,
-      to: email
-    });
+  message: error.message,
+  code: error.code,
+  response: error.response?.data || error.response,
+  stack: error.stack,
+  to: email
+});
+
     return { success: false, error: error.message };
   }
 }

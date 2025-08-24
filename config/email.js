@@ -26,18 +26,18 @@ const oAuth2Client = new google.auth.OAuth2(
   // Test the connection
   const verifyConnection = async () => {
     try {
-      console.log('🔐 Testing Gmail OAuth connection...');
+      console.log(' Testing Gmail OAuth connection...');
       
       // Test by getting user profile
       const profile = await gmail.users.getProfile({ userId: 'me' });
       
-      console.log('✅ Gmail OAuth connection successful!');
-      console.log(`📧 Connected to: ${profile.data.emailAddress}`);
-      console.log(`📊 Total messages: ${profile.data.messagesTotal}`);
+      console.log(' Gmail OAuth connection successful!');
+      console.log(` Connected to: ${profile.data.emailAddress}`);
+      console.log(` Total messages: ${profile.data.messagesTotal}`);
       
       return true;
     } catch (error) {
-      console.error('❌ Gmail OAuth connection failed:', error.message);
+      console.error(' Gmail OAuth connection failed:', error.message);
       return false;
     }
   };
@@ -45,7 +45,7 @@ const oAuth2Client = new google.auth.OAuth2(
   // Function to send email using Gmail API
 const sendEmail = async ({ to, subject, text, html }) => {
   try {
-      // 🔑 Always refresh access token before sending
+      //  Always refresh access token before sending
       const { token } = await oAuth2Client.getAccessToken();
 
       // Create email content
@@ -75,8 +75,8 @@ const sendEmail = async ({ to, subject, text, html }) => {
         }
       });
 
-      console.log('📨 Email sent successfully!');
-      console.log(`📬 Message ID: ${result.data.id}`);
+      console.log(' Email sent successfully!');
+      console.log(` Message ID: ${result.data.id}`);
       
       return {
         success: true,
@@ -85,7 +85,7 @@ const sendEmail = async ({ to, subject, text, html }) => {
       };
 
     } catch (error) {
-      console.error('❌ Failed to send email:', error.message);
+      console.error(' Failed to send email:', error.message);
       throw error;
     }
   };

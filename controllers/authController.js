@@ -430,71 +430,77 @@ class AuthController {
 
   // Password Reset Request
   async forgotPassword(req, res) {
-    try {
-      const { email } = req.body;
+  try {
+    console.log("🔥 forgotPassword route HIT");
 
-      if (!email) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email is required',
-          error: 'MISSING_EMAIL'
-        });
-      }
+    const { email } = req.body;
+    console.log("📩 Received email:", email);
 
-      const emailLower = email.toLowerCase();
-      const user = await User.findOne({ email: emailLower });
+    if (!email) {
+      console.log("⚠️ Missing email in request body");
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required',
+        error: 'MISSING_EMAIL'
+      });
+    }
 
-      if (!user) {
-        return res.status(200).json({
-          success: true,
-          message: 'If the email exists, a reset link will be sent'
-        });
-      }
+    const emailLower = email.toLowerCase();
+    const user = await User.findOne({ email: emailLower });
+    console.log("👤 User lookup result:", user ? "FOUND" : "NOT FOUND");
 
-      const resetToken = jwt.sign(
-        { userId: user._id, type: 'password_reset' },
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-      );
-
-      //  Build the full reset link for frontend (Vercel domain in production, localhost in dev)
-     const resetLink = process.env.NODE_ENV === 'production'
-  ? `${process.env.FRONTEND_URL_PROD}/passwordreset.html?token=${resetToken}`
-  : `${process.env.FRONTEND_URL_LOCAL}/reset-password?token=${resetToken}`;
-
-
-      // Send the reset email using Gmail OAuth
-      try {
-        console.log(' Sending password reset email via Gmail OAuth...');
-        const firstName = user.firstName || user.email.split('@')[0] || 'User';
-       const emailResult = await emailService.sendPasswordResetEmail(email, resetLink, firstName);
-
-
-        if (!emailResult.success) {
-          console.error(' Password reset email failed:', emailResult.error);
-          // Still return success for security (don't reveal if email exists)
-        } else {
-          console.log(' Password reset email sent successfully');
-        }
-      } catch (emailError) {
-        console.error(' Password reset email service error:', emailError);
-        // Still return success for security
-      }
-
-      res.status(200).json({
+    if (!user) {
+      console.log("⚠️ User not found, returning success (security)");
+      return res.status(200).json({
         success: true,
         message: 'If the email exists, a reset link will be sent'
       });
-
-    } catch (error) {
-      console.error('Password reset error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-        error: 'SERVER_ERROR'
-      });
     }
+
+    const resetToken = jwt.sign(
+      { userId: user._id, type: 'password_reset' },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    const resetLink =
+      process.env.NODE_ENV === 'production'
+        ? `${process.env.FRONTEND_URL_PROD}/passwordreset.html?token=${resetToken}`
+        : `${process.env.FRONTEND_URL_LOCAL}/reset-password?token=${resetToken}`;
+
+    console.log("🔗 Generated reset link:", resetLink);
+
+    try {
+      console.log("📧 Attempting to send password reset email...");
+      const firstName = user.firstName || user.email.split('@')[0] || 'User';
+      const emailResult = await emailService.sendPasswordResetEmail(email, resetLink, firstName);
+
+      console.log("📨 Email service returned:", emailResult);
+
+      if (!emailResult.success) {
+        console.error("❌ Password reset email failed:", emailResult.error);
+      } else {
+        console.log("✅ Password reset email sent successfully");
+      }
+    } catch (emailError) {
+      console.error("🚨 Password reset email service error:", emailError);
+    }
+
+    console.log("✅ forgotPassword completed successfully");
+    res.status(200).json({
+      success: true,
+      message: 'If the email exists, a reset link will be sent'
+    });
+  } catch (error) {
+    console.error("💥 forgotPassword ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: 'SERVER_ERROR'
+    });
   }
+}
+
 
   async resetPassword(req, res) {
     try {

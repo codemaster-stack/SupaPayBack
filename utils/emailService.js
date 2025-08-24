@@ -312,7 +312,7 @@ async sendPasswordResetEmail(email, resetLink, firstName = 'User') {
       subject: 'Reset Your SupaPay Password',
       html: htmlContent
     });
-
+    console.log("📨 Gmail API raw response:", result);
     console.log('✅ Password reset email sent successfully:', result.messageId);
     return { success: true, messageId: result.messageId };
     
@@ -324,6 +324,7 @@ async sendPasswordResetEmail(email, resetLink, firstName = 'User') {
   stack: error.stack,
   to: email
 });
+    console.error("❌ Full error object:", JSON.stringify(error, null, 2));
 
     return { success: false, error: error.message };
   }

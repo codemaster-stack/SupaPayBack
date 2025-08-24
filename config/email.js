@@ -45,50 +45,54 @@ const oAuth2Client = new google.auth.OAuth2(
   // Function to send email using Gmail API
 const sendEmail = async ({ to, subject, text, html }) => {
   try {
-      //  Always refresh access token before sending
-      const { token } = await oAuth2Client.getAccessToken();
+    console.log("🚀 Preparing to send email...");
+    console.log("To:", to);
+    console.log("From:", process.env.EMAIL_FROM);
+    console.log("Subject:", subject);
 
-      // Create email content
-      const email = [
-        `To: ${to}`,
-        `From: ${process.env.EMAIL_FROM}`,
-        `Subject: ${subject || '(no subject)'}`,   // added fallback
-        'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=utf-8',
-        '',
-        html || text
-      ].join('\n');
+    const { token } = await oAuth2Client.getAccessToken();
+    console.log("✅ Access token retrieved:", token ? "Yes" : "No");
 
+    const email = [
+      `To: ${to}`,
+      `From: ${process.env.EMAIL_FROM}`,
+      `Subject: ${subject || '(no subject)'}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=utf-8',
+      '',
+      html || text
+    ].join('\n');
 
-      // Encode email in base64url format
-      const encodedEmail = Buffer.from(email)
-        .toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
+    const encodedEmail = Buffer.from(email)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
 
-      // Send the email
-      const result = await gmail.users.messages.send({
-        userId: 'me',
-        requestBody: {
-          raw: encodedEmail
-        }
-      });
+    const result = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedEmail
+      }
+    });
 
-      console.log(' Email sent successfully!');
-      console.log(` Message ID: ${result.data.id}`);
-      
-      return {
-        success: true,
-        messageId: result.data.id,
-        threadId: result.data.threadId
-      };
+    console.log('📧 Email sent successfully!');
+    console.log(`Message ID: ${result.data.id}`);
 
-    } catch (error) {
-      console.error(' Failed to send email:', error.message);
-      throw error;
-    }
-  };
+    return {
+      success: true,
+      messageId: result.data.id,
+      threadId: result.data.threadId
+    };
+
+  } catch (error) {
+    console.error('❌ Failed to send email');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Full error:', error);
+    throw error;
+  }
+};
 
   // Run verification only in development
 

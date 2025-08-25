@@ -10,36 +10,10 @@ const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 
 const app = express();
-// Body Parser Middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-// Add this near the top, after `app = express();` and before route definitions
-app.use((req, res, next) => {
-  console.log('==============================');
-  console.log('Incoming request:');
-  console.log('Method:', req.method);
-  console.log('URL:', req.originalUrl);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  console.log('==============================');
-  next();
-});
-
-app.post('*', (req, res, next) => {
-  console.log('🔥 GLOBAL POST HANDLER HIT:', req.originalUrl);
-  next();
-});
-
 
 // Connect to Database
 connect();
 
-// Configure trust proxy based on environment
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1); // Trust only the first proxy (for Render/Heroku/similar)
-} else {
-  app.set('trust proxy', false); // Don't trust proxies in development
-}
 
 // Rate limiting for auth endpoints
 const authLimiter = rateLimit({
@@ -84,11 +58,15 @@ app.use(cors({
 // Handle preflight requests
 app.options('*', cors());
 
+// Body Parser Middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // Add rate limiting and logging
- 
+app.use('/api/auth', authLimiter);
 app.use('/api', generalLimiter);
 app.use(morgan('combined'));
-
+app.set('trust proxy', true);
 
 // Health Check Route
 app.get('/', (req, res) => {
@@ -111,7 +89,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-
+app.set('trust proxy', true)
 // API Routes
 app.use('/api/auth', authRoutes);
 
@@ -128,9 +106,8 @@ app.use('*', (req, res) => {
   'POST /api/auth/verify-otp',
   'POST /api/auth/resend-otp',
   'POST /api/auth/login',
-  'GET /api/auth/user/status/:userId',
-  'POST /api/auth/forgot-password',
-  'POST /api/auth/reset-password'
+  'GET /api/user/status/:userId',
+  'POST /api/auth/forgot-password'
 ]
   });
 });

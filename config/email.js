@@ -1,110 +1,27 @@
-const { google } = require('googleapis');
+const nodemailer = require('nodemailer');
 
-const createGmailTransporter = () => {
-  // Create OAuth2 client
-   const redirectUri =
-  process.env.NODE_ENV === "production"
-    ? process.env.GMAIL_REDIRECT_URI_PROD
-    : process.env.GMAIL_REDIRECT_URI_LOCAL;
-
-const oAuth2Client = new google.auth.OAuth2(
-  process.env.GMAIL_CLIENT_ID,
-  process.env.GMAIL_CLIENT_SECRET,
-  redirectUri
-);
-
-
-
-  // Set the refresh token
-  oAuth2Client.setCredentials({
-    refresh_token: process.env.GMAIL_REFRESH_TOKEN
+const createEmailTransporter = () => {
+  // Gmail configuration
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS // This should be your Gmail App Password
+    },
+    secure: true, // Use SSL
+    port: 465
   });
 
-  // Create Gmail API instance
-  const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
-
-  // Test the connection
-  const verifyConnection = async () => {
-    try {
-      console.log(' Testing Gmail OAuth connection...');
-      
-      // Test by getting user profile
-      const profile = await gmail.users.getProfile({ userId: 'me' });
-      
-      console.log(' Gmail OAuth connection successful!');
-      console.log(` Connected to: ${profile.data.emailAddress}`);
-      console.log(` Total messages: ${profile.data.messagesTotal}`);
-      
-      return true;
-    } catch (error) {
-      console.error(' Gmail OAuth connection failed:', error.message);
-      return false;
+  // Verify transporter configuration
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('Email transporter verification failed:', error);
+    } else {
+      console.log('📧 Email service is ready to send messages');
     }
-  };
+  });
 
-  // Function to send email using Gmail API
-const sendEmail = async ({ to, subject, text, html }) => {
-  try {
-    console.log("🚀 Preparing to send email...");
-    console.log("To:", to);
-    console.log("From:", process.env.EMAIL_FROM);
-    console.log("Subject:", subject);
-
-    const { token } = await oAuth2Client.getAccessToken();
-    console.log("✅ Access token retrieved:", token ? "Yes" : "No");
-
-    const email = [
-      `To: ${to}`,
-      `From: ${process.env.EMAIL_FROM}`,
-      `Subject: ${subject || '(no subject)'}`,
-      'MIME-Version: 1.0',
-      'Content-Type: text/html; charset=utf-8',
-      '',
-      html || text
-    ].join('\n');
-
-    const encodedEmail = Buffer.from(email)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-
-    const result = await gmail.users.messages.send({
-      userId: 'me',
-      requestBody: {
-        raw: encodedEmail
-      }
-    });
-
-    console.log('📧 Email sent successfully!');
-    console.log(`Message ID: ${result.data.id}`);
-
-    return {
-      success: true,
-      messageId: result.data.id,
-      threadId: result.data.threadId
-    };
-
-  } catch (error) {
-    console.error('❌ Failed to send email');
-    console.error('Error name:', error.name);
-    console.error('Error message:', error.message);
-    console.error('Full error:', error);
-    throw error;
-  }
-};
-
-  // Run verification only in development
-
-  verifyConnection();
-
-
-
-  return {
-    sendEmail,
-    verifyConnection,
-    gmail // Expose gmail instance if needed
-  };
+  return transporter;
 };
 
 const emailConfig = {
@@ -125,6 +42,6 @@ const emailConfig = {
 };
 
 module.exports = {
-  createGmailTransporter,
+  createEmailTransporter,
   emailConfig
 };

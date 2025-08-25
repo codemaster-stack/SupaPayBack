@@ -1,9 +1,8 @@
 const User = require('../models/User');
 const emailService = require('../utils/emailService');
-const { emailConfig } = require('../config/email'); // Update this path if needed
+const { emailConfig } = require('../config/email');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-// Removed nodemailer import - not needed with Gmail OAuth
 
 class AuthController {
   // Signup
@@ -77,25 +76,9 @@ class AuthController {
 
       await newUser.save();
 
-      // Send OTP email using Gmail OAuth
-      try {
-        console.log('📧 Sending OTP email via Gmail OAuth...');
-        const emailResult = await emailService.sendOTPEmail(emailLower, otpCode);
-        
-        if (!emailResult.success) {
-          console.error('❌ Email send failed during signup:', emailResult.error);
-          await User.findByIdAndDelete(newUser._id); // rollback
-          return res.status(500).json({
-            success: false,
-            message: 'Failed to send verification email. Please try again.',
-            error: 'EMAIL_SEND_FAILED',
-            details: emailResult.error
-          });
-        }
-        
-        console.log('✅ OTP email sent successfully');
-      } catch (emailError) {
-        console.error('❌ Email service error:', emailError);
+      // Send OTP email
+      const emailResult = await emailService.sendOTPEmail(emailLower, otpCode);
+      if (!emailResult.success) {
         await User.findByIdAndDelete(newUser._id); // rollback
         return res.status(500).json({
           success: false,
@@ -198,15 +181,7 @@ class AuthController {
       user.emailOTP = undefined; // clear OTP after success
       await user.save();
 
-      // Send welcome email using Gmail OAuth
-      try {
-        console.log('📧 Sending welcome email via Gmail OAuth...');
-        await emailService.sendWelcomeEmail(user.email, user.email.split('@')[0]);
-        console.log('✅ Welcome email sent successfully');
-      } catch (emailError) {
-        console.error('❌ Welcome email failed (but verification succeeded):', emailError);
-        // Don't fail the verification if welcome email fails
-      }
+      await emailService.sendWelcomeEmail(user.email, user.email.split('@')[0]);
 
       res.status(200).json({
         success: true,
@@ -267,24 +242,8 @@ class AuthController {
       user.emailOTP = { code: otpCode, expiresAt: otpExpiry, attempts: 0 };
       await user.save();
 
-      // Send OTP email using Gmail OAuth
-      try {
-        console.log('📧 Resending OTP email via Gmail OAuth...');
-        const emailResult = await emailService.sendOTPEmail(user.email, otpCode);
-        
-        if (!emailResult.success) {
-          console.error('❌ Resend OTP email failed:', emailResult.error);
-          return res.status(500).json({
-            success: false,
-            message: 'Failed to send verification email. Please try again.',
-            error: 'EMAIL_SEND_FAILED',
-            details: emailResult.error
-          });
-        }
-        
-        console.log('✅ OTP email resent successfully');
-      } catch (emailError) {
-        console.error('❌ Resend email service error:', emailError);
+      const emailResult = await emailService.sendOTPEmail(user.email, otpCode);
+      if (!emailResult.success) {
         return res.status(500).json({
           success: false,
           message: 'Failed to send verification email. Please try again.',
@@ -310,262 +269,7 @@ class AuthController {
       });
     }
   }
-
-  // Login
-  async login(req, res) {
-    try {
-      const { email, password } = req.body;
-
-      if (!email || !password) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email and password are required',
-          error: 'MISSING_FIELDS'
-        });
-      }
-
-      const emailLower = email.toLowerCase();
-      const user = await User.findOne({ email: emailLower });
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid email or password',
-          error: 'INVALID_CREDENTIALS'
-        });
-      }
-
-      // Check email verified
-      if (!user.isEmailVerified) {
-        return res.status(403).json({
-          success: false,
-          message: 'Please verify your email before logging in',
-          error: 'EMAIL_NOT_VERIFIED'
-        });
-      }
-
-      // Check password
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid email or password',
-          error: 'INVALID_CREDENTIALS'
-        });
-      }
-
-      // Generate JWT token (login successful)
-      const token = jwt.sign(
-        { userId: user._id, email: user.email, accountType: user.accountType },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      // Update last login
-      user.lastLogin = new Date();
-      await user.save();
-
-      // Return successful login with user data for frontend logic
-      res.status(200).json({
-        success: true,
-        message: 'Login successful',
-        userId: user._id,
-        token: token,
-        user: {
-          id: user._id,
-          email: user.email,
-          accountType: user.accountType
-        }
-      });
-      
-    } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-        error: 'SERVER_ERROR'
-      });
-    }
-  }
-
-  // Get User Status for Login Redirect Logic
-  async getUserStatus(req, res) {
-    try {
-      const { userId } = req.params;
-
-      // Find user
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
-
-      // Verify user is requesting their own status
-      if (req.user.userId !== userId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied'
-        });
-      }
-
-      // Return user status for frontend logic
-      res.status(200).json({
-        success: true,
-        kycCompleted: user.kycCompleted || false,
-        kycStatus: user.kycStatus || 'not_started',
-        accountType: user.accountType || 'personal',
-        emailVerified: user.isEmailVerified,
-        lastLogin: user.lastLogin
-      });
-
-    } catch (error) {
-      console.error('Status check error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error'
-      });
-    }
-  }
-
-  // Password Reset Request
-  async forgotPassword(req, res) {
-  try {
-    console.log("🔥 forgotPassword route HIT");
-
-    const { email } = req.body;
-    console.log("📩 Received email:", email);
-
-    if (!email) {
-      console.log("⚠️ Missing email in request body");
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required',
-        error: 'MISSING_EMAIL'
-      });
-    }
-
-    const emailLower = email.toLowerCase();
-    const user = await User.findOne({ email: emailLower });
-    console.log("👤 User lookup result:", user ? "FOUND" : "NOT FOUND");
-
-    if (!user) {
-      console.log("⚠️ User not found, returning success (security)");
-      return res.status(200).json({
-        success: true,
-        message: 'If the email exists, a reset link will be sent'
-      });
-    }
-
-    const resetToken = jwt.sign(
-      { userId: user._id, type: 'password_reset' },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    const resetLink =
-      process.env.NODE_ENV === 'production'
-        ? `${process.env.FRONTEND_URL_PROD}/passwordreset.html?token=${resetToken}`
-        : `${process.env.FRONTEND_URL_LOCAL}/reset-password?token=${resetToken}`;
-
-    console.log("🔗 Generated reset link:", resetLink);
-
-    try {
-      console.log("📧 Attempting to send password reset email...");
-      const firstName = user.firstName || user.email.split('@')[0] || 'User';
-      const emailResult = await emailService.sendPasswordResetEmail(email, resetLink, firstName);
-
-      console.log("📨 Email service returned:", emailResult);
-
-      if (!emailResult.success) {
-        console.error("❌ Password reset email failed:", emailResult.error);
-      } else {
-        console.log("✅ Password reset email sent successfully");
-      }
-    } catch (emailError) {
-      console.error("🚨 Password reset email service error:", emailError);
-    }
-
-    console.log("✅ forgotPassword completed successfully");
-    res.status(200).json({
-      success: true,
-      message: 'If the email exists, a reset link will be sent'
-    });
-  } catch (error) {
-    console.error("💥 forgotPassword ERROR:", error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: 'SERVER_ERROR'
-    });
-  }
-}
-
-
-  async resetPassword(req, res) {
-    try {
-      const { token, newPassword } = req.body;
-
-      if (!token || !newPassword) {
-        return res.status(400).json({
-          success: false,
-          message: 'Token and new password are required',
-          error: 'MISSING_FIELDS'
-        });
-      }
-
-      // Verify the reset token
-      let decoded;
-      try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET);
-      } catch (err) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid or expired reset token',
-          error: 'INVALID_TOKEN'
-        });
-      }
-
-      // Check if it's a password reset token
-      if (decoded.type !== 'password_reset') {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid token type',
-          error: 'INVALID_TOKEN_TYPE'
-        });
-      }
-
-      // Find user
-      const user = await User.findById(decoded.userId);
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found',
-          error: 'USER_NOT_FOUND'
-        });
-      }
-
-      // Hash new password
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-
-      // Update user's password
-      await User.findByIdAndUpdate(user._id, { password: hashedPassword });
-
-      res.status(200).json({
-        success: true,
-        message: 'Password reset successful'
-      });
-
-    } catch (error) {
-      console.error('Reset password error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-        error: 'SERVER_ERROR'
-      });
-    }
-  }
+  
 }
 
 module.exports = new AuthController();

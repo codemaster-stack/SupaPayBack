@@ -30,5 +30,10 @@ const otpLimiter = rateLimit({
 router.post('/signup', signupLimiter, validateSignup, authController.signup);
 router.post('/verify-otp', otpLimiter, validateOTP, authController.verifyOTP);
 router.post('/resend-otp', otpLimiter, authController.resendOTP);
-router.post('/login', authController.login);
+router.post("/login", authController.login);
+router.get("/user/status/:userId", authController.getUserStatus);
+router.post("/forgot-password", authController.forgotPassword);
+router.post("/reset-password", authController.resetPassword);
+
+
 module.exports = router;

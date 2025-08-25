@@ -104,6 +104,74 @@ class EmailService {
       console.error('Welcome email error:', error);
     }
   }
+
+
+
+  // Inside EmailService class
+async sendPasswordResetEmail(email, resetLink, firstName = 'User') {
+  const mailOptions = {
+    from: emailConfig.from,
+    to: email,
+    subject: 'Reset Your SupaPay Password',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .logo { font-size: 24px; font-weight: bold; color: #ffa600ff; }
+          .btn {
+            display: inline-block;
+            padding: 12px 20px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 16px;
+            margin: 20px 0;
+          }
+          .warning { color: #dc3545; font-size: 14px; margin-top: 20px; }
+          .footer { margin-top: 30px; text-align: center; color: #6c757d; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">SupaPay</div>
+            <h2>Password Reset Request</h2>
+          </div>
+
+          <p>Hello ${firstName},</p>
+          <p>We received a request to reset your SupaPay password. If this was you, click the button below to reset it:</p>
+
+          <p style="text-align:center;">
+            <a href="${resetLink}" class="btn">Reset Password</a>
+          </p>
+
+          <p>If you didn’t request a password reset, you can safely ignore this email. This link will expire in 15 minutes.</p>
+
+          <div class="footer">
+            <p>© 2025 SupaPay. All rights reserved.</p>
+            <p>This is an automated message, please do not reply.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  };
+
+  try {
+    const result = await this.transporter.sendMail(mailOptions);
+    console.log('Password reset email sent successfully:', result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('Password reset email error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 }
 
 module.exports = new EmailService();

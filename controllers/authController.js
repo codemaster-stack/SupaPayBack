@@ -269,7 +269,169 @@ class AuthController {
       });
     }
   }
-  
+
+
+
+    // LOGIN
+  async login(req, res) {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: "Email and password are required"
+        });
+      }
+
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid email or password"
+        });
+      }
+
+      // Check password
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid email or password"
+        });
+      }
+
+      // Ensure email verified
+      if (!user.isEmailVerified) {
+        return res.status(403).json({
+          success: false,
+          message: "Please verify your email before logging in"
+        });
+      }
+
+      // Generate JWT
+      const token = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Login successful",
+        token,
+        userId: user._id
+      });
+
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error"
+      });
+    }
+  }
+
+  // GET USER STATUS
+  async getUserStatus(req, res) {
+    try {
+      const { userId } = req.params;
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found"
+        });
+      }
+
+      res.status(200).json({
+        kycCompleted: user.kycCompleted || false,
+        kycStatus: user.kycStatus || "pending",
+        accountType: user.accountType || "personal"
+      });
+
+    } catch (error) {
+      console.error("User status error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error"
+      });
+    }
+  }
+
+ 
+  // Forgot Password - Request reset
+async forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Generate reset token (JWT or random string)
+    const resetToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+    await user.save();
+
+    // Send email with reset link
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    await emailService.sendPasswordResetEmail(user.email, resetLink);
+
+    res.json({ success: true, message: "Password reset link sent to your email" });
+
+  } catch (error) {
+    console.error("Forgot Password error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+}
+
+// Reset Password - Confirm new password
+async resetPassword(req, res) {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: "Token and new password required" });
+    }
+
+    // Verify token
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: "Invalid or expired token" });
+    }
+
+    const user = await User.findById(payload.userId);
+    if (!user || user.resetPasswordToken !== token || Date.now() > user.resetPasswordExpires) {
+      return res.status(400).json({ success: false, message: "Invalid or expired token" });
+    }
+
+    // Update password
+    user.password = newPassword; // bcrypt middleware will hash
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ success: true, message: "Password has been reset successfully" });
+
+  } catch (error) {
+    console.error("Reset Password error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+}
+
 }
 
 module.exports = new AuthController();

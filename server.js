@@ -107,7 +107,8 @@ app.use('*', (req, res) => {
   'POST /api/auth/resend-otp',
   'POST /api/auth/login',
   'GET /api/user/status/:userId',
-  'POST /api/auth/forgot-password'
+  'POST /api/auth/forgot-password',
+  'POST /api/auth/reset-password'
 ]
   });
 });

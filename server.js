@@ -66,7 +66,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api/auth', authLimiter);
 app.use('/api', generalLimiter);
 app.use(morgan('combined'));
-app.set('trust proxy', true);
+// app.set('trust proxy', );
 
 // Health Check Route
 app.get('/', (req, res) => {
@@ -89,7 +89,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.set('trust proxy', true)
+app.set('trust proxy', 1)
 // API Routes
 app.use('/api/auth', authRoutes);
 

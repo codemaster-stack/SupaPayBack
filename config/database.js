@@ -15,6 +15,9 @@ const connectDB = async () => {
   }
 };
 
+console.log("Connecting with URI:", process.env.MONGO_URI);
+
+
 // Handle connection events
 mongoose.connection.on('disconnected', () => {
   console.log('Mongo disconnected');

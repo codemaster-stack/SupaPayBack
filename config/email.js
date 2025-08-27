@@ -48,60 +48,18 @@
 // };
 
 
-
-
 require("dotenv").config();
-const nodemailer = require("nodemailer");
-const { google } = require("googleapis");
+const { Resend } = require("resend");
 
-// Setup OAuth2 client
-const oAuth2Client = new google.auth.OAuth2(
-  process.env.GMAIL_CLIENT_ID,
-  process.env.GMAIL_CLIENT_SECRET,
-  process.env.GMAIL_REDIRECT_URI // e.g., https://developers.google.com/oauthplayground
-);
-oAuth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
+// Initialize Resend client with your API key
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Function to create transporter
-const createEmailTransporter = async () => {
-  try {
-    // Get access token
-    const accessToken = await oAuth2Client.getAccessToken();
-
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        type: "OAuth2",
-        user: process.env.GMAIL_USER,           // your Gmail address
-        clientId: process.env.GMAIL_CLIENT_ID,
-        clientSecret: process.env.GMAIL_CLIENT_SECRET,
-        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-        accessToken: accessToken.token,
-      },
-    });
-
-    // Verify transporter
-    transporter.verify((err, success) => {
-      if (err) {
-        console.error("Email transporter verification failed:", err);
-      } else {
-        console.log("📧 Gmail OAuth2 transporter is ready to send messages");
-      }
-    });
-
-    return transporter;
-  } catch (err) {
-    console.error("Error creating email transporter:", err);
-  }
-};
-
-// Email configuration
 const emailConfig = {
-  from: process.env.GMAIL_USER || "SupaPay <supaapay@gmail.com>",
+  from: process.env.EMAIL_FROM || "SupaPay <noreply@supaapay.app>", 
   otpExpiry: parseInt(process.env.OTP_EXPIRY_MINUTES) || 10,
   templates: {
     otpSubject: "Verify Your SupaPay Account",
-    welcomeSubject: "Welcome to SupaPay! 🎉",
+    welcomeSubject: "Welcome to SupaPay 🎉",
   },
   limits: {
     maxOtpPerHour: 5,
@@ -110,6 +68,7 @@ const emailConfig = {
 };
 
 module.exports = {
-  createEmailTransporter,
+  resend,
   emailConfig,
 };
+
